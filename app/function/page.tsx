@@ -27,6 +27,7 @@ export default function FunctionPage() {
   const [roleVoiceMappings, setRoleVoiceMappings] = useState<RoleVoiceMapping[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [splitContent, setSplitContent] = useState<DialogItem[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // 检查用户是否已登录的简单实现
   useEffect(() => {
@@ -60,6 +61,7 @@ export default function FunctionPage() {
     const novelText = document.querySelector('textarea')?.value;
     if (!novelText) return;
     
+    setIsProcessing(true);
     try {
       const response = await fetch('/api/split-text', {
         method: 'POST',
@@ -98,6 +100,8 @@ export default function FunctionPage() {
     } catch (error) {
       console.error('Error splitting text:', error);
       alert('Failed to process text');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -177,12 +181,21 @@ export default function FunctionPage() {
         {/* 中间区域：多角色对话文案 */}
         <div className="w-1/3 p-4 bg-white dark:bg-gray-800 m-2 rounded-lg shadow-lg relative">
           <div className="absolute left-0 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-            <div className="bg-blue-500 text-white p-2 rounded-full cursor-pointer" 
-                 onClick={processNovelText}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-            </div>
+            <button 
+              onClick={processNovelText}
+              disabled={isProcessing}
+              className={`bg-blue-500 text-white p-2 rounded-full 
+                hover:bg-blue-600 disabled:bg-blue-300 dark:disabled:bg-blue-800
+                transition-colors relative ${isProcessing ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              {isProcessing ? (
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              )}
+            </button>
           </div>
           <h2 className="text-xl font-bold mb-4 dark:text-white">对话文案</h2>
           <textarea
@@ -195,13 +208,6 @@ export default function FunctionPage() {
 
         {/* 右侧区域：音色选择 */}
         <div className="w-1/3 p-4 bg-white dark:bg-gray-800 m-2 rounded-lg shadow-lg relative">
-          {/* <div className="absolute left-0 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-            <div className="bg-blue-500 text-white p-2 rounded-full">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-            </div>
-          </div> */}
           <h2 className="text-xl font-bold mb-4 dark:text-white">音色选择</h2>
           <div className="space-y-4">
             {roles.map((role, index) => (
@@ -215,23 +221,27 @@ export default function FunctionPage() {
                     value={roleVoiceMappings.find(m => m.role === role)?.selectedVoice || ''}
                     onChange={(e) => handleVoiceSelect(role, e.target.value)}
                   />
-                  {/* <div className="text-sm text-gray-500 dark:text-gray-400">
-                    可选音色: {voices.map(voice => 
-                      `${voice.voice_id}(${voice.voice_name})`
-                    ).join(', ')}
-                  </div> */}
                 </div>
               </div>
             ))}
             
-            {/* 添加生成配音按钮 */}
+            {/* 生成配音按钮 */}
             {roles.length > 0 && (
               <button
                 onClick={handleGenerateVoice}
                 disabled={isGenerating}
-                className="w-full mt-4 py-3 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors"
+                className="w-full mt-4 py-3 px-4 bg-blue-500 text-white rounded-lg 
+                  hover:bg-blue-600 disabled:bg-blue-300 dark:disabled:bg-blue-800 
+                  transition-colors relative flex items-center justify-center"
               >
-                {isGenerating ? '生成配音中...' : '生成配音'}
+                {isGenerating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    生成配音中...
+                  </>
+                ) : (
+                  '生成配音'
+                )}
               </button>
             )}
           </div>

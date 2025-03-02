@@ -90,7 +90,7 @@ export default function FunctionPage() {
       setVoices(voiceList);
       
       // 初始化角色-音色映射
-      setRoleVoiceMappings(newRoles.map(role => ({
+      setRoleVoiceMappings(newRoles.map((role: string) => ({
         role,
         selectedVoice: ''
       })));

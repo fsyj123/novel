@@ -195,13 +195,13 @@ export default function FunctionPage() {
 
         {/* 右侧区域：音色选择 */}
         <div className="w-1/3 p-4 bg-white dark:bg-gray-800 m-2 rounded-lg shadow-lg relative">
-          <div className="absolute left-0 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
+          {/* <div className="absolute left-0 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
             <div className="bg-blue-500 text-white p-2 rounded-full">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
               </svg>
             </div>
-          </div>
+          </div> */}
           <h2 className="text-xl font-bold mb-4 dark:text-white">音色选择</h2>
           <div className="space-y-4">
             {roles.map((role, index) => (

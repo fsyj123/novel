@@ -144,6 +144,42 @@ export default function FunctionPage() {
     }
   };
 
+  // Add new handler for dialog textarea changes
+  const handleDialogChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newText = e.target.value;
+    // Parse the text back into splitContent format
+    const newSplitContent = newText.split('\n')
+      .map(line => {
+        const match = line.match(/【(.+?)】:\s*(.+)/);
+        if (match) {
+          return {
+            role: match[1],
+            content: match[2]
+          };
+        }
+        return null;
+      })
+      .filter((item): item is DialogItem => item !== null);
+    
+    setSplitContent(newSplitContent);
+
+    // Extract unique roles from the new content
+    const newRoles = Array.from(new Set(newSplitContent.map(item => item.role)));
+    
+    // Update roles if there are changes
+    if (JSON.stringify(newRoles.sort()) !== JSON.stringify(roles.sort())) {
+      setRoles(newRoles);
+      // Update role-voice mappings while preserving existing mappings
+      setRoleVoiceMappings(prevMappings => {
+        const newMappings = newRoles.map(role => ({
+          role,
+          selectedVoice: prevMappings.find(m => m.role === role)?.selectedVoice || ''
+        }));
+        return newMappings;
+      });
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-100 dark:bg-gray-900">
       {/* 顶部导航栏 */}
@@ -201,8 +237,8 @@ export default function FunctionPage() {
           <textarea
             id="dialog-textarea"
             className="w-full h-[calc(100%-6rem)] p-4 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-            placeholder="在这里编辑多角色对话文案..."
-            readOnly
+            placeholder="在这里编辑多角色对话文案...&#10;格式：【角色】: 对话内容"
+            onChange={handleDialogChange}
           />
         </div>
 

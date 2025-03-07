@@ -28,6 +28,7 @@ export default function FunctionPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [splitContent, setSplitContent] = useState<DialogItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingProgress, setProcessingProgress] = useState(0);
 
   // 检查用户是否已登录的简单实现
   useEffect(() => {
@@ -63,6 +64,7 @@ export default function FunctionPage() {
     
     setIsProcessing(true);
     try {
+      // 启动处理
       const response = await fetch('/api/split-text', {
         method: 'POST',
         headers: {
@@ -73,34 +75,68 @@ export default function FunctionPage() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to split text');
-      }
-      
-      const { split_content, roles: newRoles, voices: voiceList } = await response.json();
-      
-      // 保存 split_content 到状态
-      setSplitContent(split_content);
-      
-      // 更新对话文本
-      if (document.querySelector('#dialog-textarea')) {
-        (document.querySelector('#dialog-textarea') as HTMLTextAreaElement).value = 
-          split_content.map((item: any) => `【${item.role}】: ${item.content}`).join('\n');
+        throw new Error('Failed to start processing');
       }
 
-      // 更新角色列表和音色列表
-      setRoles(newRoles);
-      setVoices(voiceList);
+      const { taskId } = await response.json();
       
-      // 初始化角色-音色映射
-      setRoleVoiceMappings(newRoles.map((role: string) => ({
-        role,
-        selectedVoice: ''
-      })));
+      // 开始轮询任务状态
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusResponse = await fetch(`/api/split-text?taskId=${taskId}`);
+          if (!statusResponse.ok) {
+            throw new Error('Failed to get task status');
+          }
+
+          const data = await statusResponse.json();
+          
+          // 更新进度
+          setProcessingProgress(data.progress || 0);
+          
+          if (data.status === 'processing' && data.result) {
+            // 实时更新已处理的内容
+            setSplitContent(data.result.split_content);
+            setRoles(data.result.roles || []);
+            
+            // 更新对话文本
+            if (document.querySelector('#dialog-textarea')) {
+              (document.querySelector('#dialog-textarea') as HTMLTextAreaElement).value = 
+                data.result.split_content.map((item: any) => `【${item.role}】: ${item.content}`).join('\n');
+            }
+          } else if (data.status === 'completed') {
+            // 处理完成
+            clearInterval(pollInterval);
+            setSplitContent(data.result.split_content);
+            setRoles(data.result.roles);
+            
+            // 更新对话文本
+            if (document.querySelector('#dialog-textarea')) {
+              (document.querySelector('#dialog-textarea') as HTMLTextAreaElement).value = 
+                data.result.split_content.map((item: any) => `【${item.role}】: ${item.content}`).join('\n');
+            }
+            
+            // 初始化角色-音色映射
+            setRoleVoiceMappings(data.result.roles.map((role: string) => ({
+              role,
+              selectedVoice: ''
+            })));
+            
+            setIsProcessing(false);
+          } else if (data.status === 'error') {
+            clearInterval(pollInterval);
+            throw new Error(data.error || 'Processing failed');
+          }
+        } catch (error) {
+          clearInterval(pollInterval);
+          console.error('Polling error:', error);
+          setIsProcessing(false);
+          alert('处理过程中出现错误');
+        }
+      }, 2000); // 每2秒轮询一次
       
     } catch (error) {
-      console.error('Error splitting text:', error);
+      console.error('Error processing text:', error);
       alert('Failed to process text');
-    } finally {
       setIsProcessing(false);
     }
   };
@@ -225,7 +261,14 @@ export default function FunctionPage() {
                 transition-colors relative ${isProcessing ? 'cursor-not-allowed' : 'cursor-pointer'}`}
             >
               {isProcessing ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                <div className="relative">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                  {processingProgress > 0 && (
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 text-xs text-white">
+                      {processingProgress}%
+                    </div>
+                  )}
+                </div>
               ) : (
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />

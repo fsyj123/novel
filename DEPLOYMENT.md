@@ -1,16 +1,10 @@
 # 部署指南
 
-本文档介绍如何将小说配音助手部署到 Ubuntu 服务器上。
+## 方案一：传统部署
 
-## 系统要求
+## 必选步骤
 
-- Ubuntu 20.04 LTS 或更高版本
-- Node.js 18.x 或更高版本
-- npm 9.x 或更高版本
-- PM2 (用于进程管理)
-- Nginx (用于反向代理)
-
-## 1. 安装基础环境
+### 1. 基础环境安装
 
 ```bash
 # 更新系统包
@@ -32,7 +26,7 @@ sudo npm install -g pm2
 sudo apt install -y nginx
 ```
 
-## 2. 配置项目
+### 2. 项目配置
 
 ```bash
 # 创建应用目录
@@ -52,7 +46,7 @@ npm install
 npm run build
 ```
 
-## 3. 配置环境变量
+### 3. 环境变量配置
 
 创建 `.env.production` 文件：
 
@@ -65,31 +59,21 @@ NODE_ENV=production
 # 添加其他必要的环境变量
 ```
 
-## 4. 配置 PM2
-
-创建 PM2 配置文件：
+### 4. 启动应用
 
 ```bash
-# 在项目根目录创建 ecosystem.config.js
-touch ecosystem.config.js
+# 使用 PM2 启动应用
+cd /var/www/novel
+pm2 start ecosystem.config.js
+
+# 设置 PM2 开机自启
+pm2 startup
+pm2 save
 ```
 
-添加以下内容：
+## 推荐步骤（可选）
 
-```javascript
-module.exports = {
-  apps: [{
-    name: 'novel-app',
-    script: 'npm',
-    args: 'start',
-    env: {
-      NODE_ENV: 'production',
-    },
-  }],
-};
-```
-
-## 5. 配置 Nginx
+### 1. Nginx 配置
 
 创建 Nginx 配置文件：
 
@@ -128,19 +112,7 @@ sudo nginx -t
 sudo systemctl restart nginx
 ```
 
-## 6. 启动应用
-
-```bash
-# 使用 PM2 启动应用
-cd /var/www/novel
-pm2 start ecosystem.config.js
-
-# 设置 PM2 开机自启
-pm2 startup
-pm2 save
-```
-
-## 7. SSL 配置（可选但推荐）
+### 2. SSL 配置
 
 使用 Let's Encrypt 配置 SSL：
 
@@ -152,6 +124,30 @@ sudo apt install -y certbot python3-certbot-nginx
 sudo certbot --nginx -d your-domain.com
 
 # 证书会自动更新
+```
+
+### 3. PM2 进程管理
+
+创建 PM2 配置文件：
+
+```bash
+# 在项目根目录创建 ecosystem.config.js
+touch ecosystem.config.js
+```
+
+添加以下内容：
+
+```javascript
+module.exports = {
+  apps: [{
+    name: 'novel-app',
+    script: 'npm',
+    args: 'start',
+    env: {
+      NODE_ENV: 'production',
+    },
+  }],
+};
 ```
 
 ## 8. 维护命令
@@ -191,4 +187,86 @@ pm2 restart novel-app
 - 所有端口都已正确配置
 - 环境变量已正确设置
 - 文件权限正确
-- 系统资源充足 
+- 系统资源充足
+
+## 方案二：Docker Compose 部署
+
+### 1. 安装 Docker 和 Docker Compose
+
+```bash
+# 安装 Docker
+curl -fsSL https://get.docker.com | sh
+
+# 安装 Docker Compose
+sudo apt install docker-compose-plugin
+
+# 验证安装
+docker --version
+docker compose version
+```
+
+### 2. 配置项目
+
+确保项目根目录下有以下文件：
+- `Dockerfile`：用于构建应用镜像
+- `docker-compose.yml`：定义服务编排
+- `.env.production`：环境变量配置
+
+### 3. 启动服务
+
+```bash
+# 构建并启动服务
+docker compose up -d --build
+
+# 查看服务状态
+docker compose ps
+
+# 查看日志
+docker compose logs -f
+```
+
+### 4. 数据迁移（如果需要）
+
+```bash
+# 进入应用容器
+docker compose exec app sh
+
+# 执行数据迁移
+npx prisma migrate deploy
+```
+
+### 5. 维护命令
+
+```bash
+# 停止服务
+docker compose down
+
+# 重启服务
+docker compose restart
+
+# 更新应用
+git pull
+docker compose up -d --build
+
+# 查看日志
+docker compose logs -f app
+docker compose logs -f db
+```
+
+### 6. 数据备份
+
+```bash
+# 备份数据库
+docker compose exec db pg_dump -U novel_user novel_db > backup.sql
+
+# 恢复数据库
+cat backup.sql | docker compose exec -T db psql -U novel_user novel_db
+```
+
+### 注意事项
+
+1. 确保服务器防火墙允许 Docker 使用的端口
+2. 定期备份 `postgres_data` 卷中的数据
+3. 在生产环境中修改数据库默认密码
+4. 考虑使用 Docker 的日志轮转功能
+5. 建议使用 Docker 的健康检查功能 
